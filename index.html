@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>My Money – Simple Budget App</title>
+<meta name="theme-color" content="#0b0f1f" />
+<style>
+  :root{
+    --bg:#0b0f1f; --panel:#101632; --ink:#eaf2ff; --mut:#a9b6db; --ring:#223057;
+    --g1:#ff6ec4; --g2:#7873f5; --a1:#78f3ff; --ok:#b7ffcf; --bad:#ffb3be;
+    --shadow:0 10px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(120,115,245,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink); background:
+      radial-gradient(1200px 800px at 70% -10%, #19254d 0%, #0b0f1f 55%, #070a15 100%);
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    line-height:1.35;
+  }
+  .wrap{max-width:1100px;margin-inline:auto;padding:24px}
+  header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .title{display:flex;align-items:center;gap:12px}
+  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--g1),var(--g2));
+    display:grid;place-items:center;box-shadow:var(--shadow)}
+  .logo b{font-size:18px}
+  h1{font-size:20px;margin:0}
+  .mut{color:var(--mut)}
+  .row{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:940px){.row{grid-template-columns: 1.1fr .9fr}}
+
+  .card{background:rgba(16,22,50,.9); border:1px solid var(--ring); border-radius:16px; padding:16px; box-shadow:var(--shadow)}
+  .card h2{font-size:16px;margin:0 0 10px}
+
+  .grid-2{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:680px){.grid-2{grid-template-columns:1fr 1fr}}
+
+  label{display:block;font-size:12px;color:var(--mut);margin:2px 0 6px}
+  input[type="number"], input[type="text"], select{width:100%;padding:12px 12px;border-radius:12px;border:1px solid #2b3c6d;background:#0f132b;color:var(--ink)}
+  input[type="number"]{appearance:textfield}
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button{appearance:none;margin:0}
+
+  .btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid #3b4e8a;background:#12183b;color:var(--ink);cursor:pointer;text-decoration:none}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.primary{background:linear-gradient(90deg,var(--g1),var(--g2)); border-color:transparent}
+  .btn.ghost{background:transparent}
+  .right{margin-left:auto}
+
+  .flex{display:flex;gap:10px;align-items:center}
+  .pill{padding:4px 10px;border-radius:999px;border:1px solid #334276;background:#12183b;color:var(--ink);font-size:12px}
+
+  .list{display:grid;gap:10px;margin-top:8px}
+  .item{display:grid;grid-template-columns:1fr 110px 36px;gap:8px;align-items:center}
+  .item input[type="text"]{background:#0e1430}
+  .item input[type="number"]{text-align:right}
+  .item .del{background:#1a2148;border:1px solid #3a4aa0;border-radius:10px;display:grid;place-items:center;cursor:pointer;height:40px}
+  .addline{margin-top:10px}
+
+  .summary{display:grid;gap:12px}
+  .summary .srow{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0e1430;border:1px solid #2b3c6d}
+  .summary .srow strong{font-weight:700}
+  .summary .accent{background:linear-gradient(90deg, rgba(255,110,196,.16), rgba(120,115,245,.16)); border-color:rgba(120,115,245,.35)}
+  .summary .good{border-color:#2a6b46;background:linear-gradient(90deg, rgba(183,255,207,.12), rgba(120,245,190,.06));}
+  .summary .warn{border-color:#6b2a2a;background:linear-gradient(90deg, rgba(255,179,190,.14), rgba(245,120,120,.06));}
+
+  .footer-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .note{font-size:12px;color:var(--mut)}
+
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tab{padding:8px 10px;border-radius:10px;border:1px solid #2b3c6d;background:#0f132b;cursor:pointer}
+  .tab.active{background:linear-gradient(90deg,var(--g1),var(--g2));border-color:transparent}
+
+  details{border:1px solid #2b3c6d;border-radius:12px;padding:10px;background:#0f132b}
+  details>summary{cursor:pointer;list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; background:#0d142d; padding:2px 6px; border-radius:6px; border:1px solid #2a386a}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="logo" aria-hidden="true"><b>$$</b></div>
+        <div>
+          <h1>My Money – Monthly Planner</h1>
+          <div class="mut">Track salary, credit card, expenses & savings. Everything in one flow.</div>
+        </div>
+      </div>
+      <div class="flex">
+        <button class="btn ghost" id="btnExport" title="Export JSON">Export</button>
+        <label class="btn ghost" for="importFile" title="Import JSON">Import<input id="importFile" type="file" accept="application/json" hidden></label>
+        <button class="btn" id="btnReset" title="Clear this month">Clear</button>
+      </div>
+    </header>
+
+    <div class="row">
+      <section class="card">
+        <div class="tabs" id="monthTabs"></div>
+        <div class="grid-2">
+          <div>
+            <h2>1) Income</h2>
+            <div class="list" id="incomeList"></div>
+            <button class="btn addline" id="addIncome">+ Add income</button>
+          </div>
+          <div>
+            <h2>2) Credit Card Bill</h2>
+            <label>Statement Amount</label>
+            <input type="number" id="ccAmount" placeholder="e.g. 1200" min="0" step="0.01"/>
+            <div class="flex" style="margin-top:8px">
+              <label class="pill"><input type="radio" name="ccPay" value="full" checked> &nbsp;Pay in full</label>
+              <label class="pill"><input type="radio" name="ccPay" value="min"> &nbsp;Pay minimum</label>
+              <input type="number" id="ccMinPct" class="right" style="max-width:120px" value="5" min="1" max="50" step="1" />
+            </div>
+            <div class="note" style="margin-top:6px">Tip: Paying in full avoids interest. If paying minimum, we’ll reserve <span id="minReserve">0</span> now and carry the rest as debt (informational only).</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:14px">
+          <div>
+            <h2>3) Other Expenses</h2>
+            <details open>
+              <summary><strong>Fixed</strong> (rent, insurance, subscriptions)</summary>
+              <div class="list" id="fixedList"></div>
+              <button class="btn addline" id="addFixed">+ Add fixed</button>
+            </details>
+            <details style="margin-top:10px" open>
+              <summary><strong>Variable</strong> (food, transport, fun)</summary>
+              <div class="list" id="varList"></div>
+              <button class="btn addline" id="addVar">+ Add variable</button>
+            </details>
+          </div>
+          <div>
+            <h2>4) Savings</h2>
+            <div class="flex">
+              <label class="pill"><input type="radio" name="saveMode" value="percent" checked> &nbsp;% of income</label>
+              <label class="pill"><input type="radio" name="saveMode" value="amount"> &nbsp;Fixed amount</label>
+            </div>
+            <div class="grid-2" style="margin-top:8px">
+              <div>
+                <label>Percent</label>
+                <input type="number" id="savePct" value="10" min="0" max="90" step="1"/>
+              </div>
+              <div>
+                <label>Fixed Amount</label>
+                <input type="number" id="saveAmt" value="0" min="0" step="0.01"/>
+              </div>
+            </div>
+
+            <h2 style="margin-top:14px">5) Summary</h2>
+            <div class="summary" id="summaryBox">
+              <div class="srow accent"><span>Total Income</span><strong id="sumIncome">0</strong></div>
+              <div class="srow"><span>Credit Card (this month)</span><strong id="sumCC">0</strong></div>
+              <div class="srow"><span>Fixed Expenses</span><strong id="sumFixed">0</strong></div>
+              <div class="srow"><span>Variable Budget</span><strong id="sumVar">0</strong></div>
+              <div class="srow"><span>Savings</span><strong id="sumSave">0</strong></div>
+              <div class="srow good"><span>Leftover (Free to Use)</span><strong id="sumLeft">0</strong></div>
+              <div class="srow" id="perDayRow"><span>Safe per day (<span id="daysLeft">0</span> days left)</span><strong id="perDay">0</strong></div>
+              <div class="srow warn" id="overspendRow" style="display:none"><span>Warning</span><strong>Overspending this month</strong></div>
+            </div>
+            <div class="footer-actions">
+              <button class="btn primary" id="btnQuickAdd">Quick add: salary + card</button>
+              <button class="btn" id="btnToday">Set month = current</button>
+            </div>
+            <div class="note">Save/Load happens automatically with <span class="kbd">localStorage</span>. Switch months using the tabs above.</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>How it works</h2>
+        <ol class="mut">
+          <li>Add all income lines (salary, side gigs).
+          <li>Enter your credit card statement. If you pick <em>minimum</em>, we reserve that amount now and show the carried balance.
+          <li>List your fixed and variable expenses.
+          <li>Choose savings by % or fixed.
+          <li>Read the summary: leftover and safe-per-day.
+        </ol>
+        <details style="margin-top:8px">
+          <summary><strong>Carry-over note</strong></summary>
+          <p class="mut">If you pay minimum, the unpaid part is shown as “carried”. This app doesn’t calculate bank interest; it simply helps you plan cash flow. Aim to switch back to “Pay in full” ASAP.</p>
+        </details>
+        <details style="margin-top:8px">
+          <summary><strong>Shortcuts</strong></summary>
+          <ul class="mut">
+            <li><span class="kbd">Tab</span> to move fields, <span class="kbd">Shift</span> + <span class="kbd">Tab</span> to go back.
+            <li>Press <span class="kbd">Enter</span> inside an amount to update totals.
+          </ul>
+        </details>
+      </aside>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = (q, el=document)=>el.querySelector(q);
+  const $$ = (q, el=document)=>Array.from(el.querySelectorAll(q));
+
+  // --- State ---
+  const storeKey = 'mymoney.v1';
+  const now = new Date();
+  const ym = (d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  let activeMonth = ym(now);
+
+  const blankMonth = ()=>({
+    income:[{name:'Salary', amount:0}],
+    cc:{amount:0, mode:'full', minPct:5},
+    fixed:[{name:'Rent', amount:0}],
+    variable:[{name:'Groceries', amount:0}],
+    saving:{mode:'percent', pct:10, amount:0}
+  });
+
+  const state = load() || { months: { [activeMonth]: blankMonth() } };
+  if(!state.months[activeMonth]) state.months[activeMonth] = blankMonth();
+
+  // --- UI Builders ---
+  const monthTabs = $('#monthTabs');
+  const incomeList = $('#incomeList');
+  const fixedList = $('#fixedList');
+  const varList = $('#varList');
+
+  function buildTabs(){
+    monthTabs.innerHTML = '';
+    const months = Object.keys(state.months).sort();
+    months.forEach(m=>{
+      const btn = document.createElement('button');
+      btn.className = 'tab' + (m===activeMonth?' active':'');
+      btn.textContent = labelMonth(m);
+      btn.onclick = ()=>{ activeMonth = m; renderAll(); save(); };
+      monthTabs.appendChild(btn);
+    });
+    // Add next/prev quick tabs
+    const addBtn = document.createElement('button');
+    addBtn.className = 'tab'; addBtn.textContent = '+ Add Month';
+    addBtn.onclick = ()=>{
+      const next = prompt('Create month YYYY-MM (e.g. 2025-10)', activeMonth);
+      if(!next) return; if(!/^\d{4}-\d{2}$/.test(next)) return alert('Use YYYY-MM');
+      if(!state.months[next]) state.months[next]=blankMonth();
+      activeMonth = next; renderAll(); save();
+    };
+    monthTabs.appendChild(addBtn);
+  }
+
+  function labelMonth(m){
+    const [y,mo] = m.split('-').map(Number);
+    const d = new Date(y, mo-1, 1);
+    return d.toLocaleString(undefined,{month:'short', year:'numeric'});
+  }
+
+  function makeLine(listEl, arr, onChange){
+    listEl.innerHTML = '';
+    arr.forEach((row, idx)=>{
+      const line = document.createElement('div');
+      line.className = 'item';
+      line.innerHTML = `
+        <input type="text" value="${row.name||''}" placeholder="Name" aria-label="name">
+        <input type="number" value="${row.amount||0}" min="0" step="0.01" aria-label="amount">
+        <button class="del" title="Delete">✕</button>
+      `;
+      const [nameEl, amtEl, delEl] = line.children;
+      nameEl.oninput = ()=>{ row.name = nameEl.value; onChange(); };
+      amtEl.oninput = ()=>{ row.amount = parseFloat(amtEl.value||0); onChange(); };
+      amtEl.onchange = onChange;
+      delEl.onclick = ()=>{ arr.splice(idx,1); onChange(); };
+      listEl.appendChild(line);
+    });
+  }
+
+  // --- Render / Compute ---
+  const el = {
+    ccAmount: $('#ccAmount'), ccMinPct: $('#ccMinPct'),
+    sumIncome: $('#sumIncome'), sumCC: $('#sumCC'), sumFixed: $('#sumFixed'), sumVar: $('#sumVar'), sumSave: $('#sumSave'), sumLeft: $('#sumLeft'), perDay: $('#perDay'), daysLeft: $('#daysLeft'),
+    overspendRow: $('#overspendRow'), perDayRow: $('#perDayRow'), minReserve: $('#minReserve')
+  };
+
+  function readActive(){ return state.months[activeMonth]; }
+
+  function calc(){
+    const m = readActive();
+    const income = sum(m.income);
+    const ccAmt = +el.ccAmount.value || 0;
+    const payMode = $('input[name="ccPay"]:checked').value;
+    const minPct = +el.ccMinPct.value || 5;
+    const ccPay = payMode==='full' ? ccAmt : ccAmt * (minPct/100);
+    const ccCarry = Math.max(0, ccAmt - ccPay);
+
+    const fixed = sum(m.fixed);
+    const variable = sum(m.variable);
+
+    let saveAmt = 0;
+    const saveMode = $('input[name="saveMode"]:checked').value;
+    if(saveMode==='percent') saveAmt = income * ((+$('#savePct').value||0)/100);
+    else saveAmt = +$('#saveAmt').value||0;
+
+    const left = income - ccPay - fixed - variable - saveAmt;
+
+    // Days left in month for per-day safe amount (if positive)
+    const [yy,mm] = activeMonth.split('-').map(Number);
+    const today = new Date();
+    const inMonth = today.getFullYear()===yy && today.getMonth()===(mm-1);
+    const totalDays = new Date(yy, mm, 0).getDate();
+    const dayStart = inMonth ? today.getDate() : 1; // if not current month, show full month average
+    const remainingDays = totalDays - dayStart + 1;
+
+    return { income, ccAmt, ccPay, ccCarry, fixed, variable, saveAmt, left, remainingDays };
+  }
+
+  function fmt(n){
+    return (n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  function sum(arr){ return arr.reduce((a,b)=>a + (+b.amount||0), 0); }
+
+  function renderAll(){
+    buildTabs();
+    const m = readActive();
+
+    // Rebuild lists
+    makeLine(incomeList, m.income, onChange);
+    makeLine(fixedList, m.fixed, onChange);
+    makeLine(varList, m.variable, onChange);
+
+    // Set inputs
+    el.ccAmount.value = m.cc.amount || 0;
+    el.ccMinPct.value = m.cc.minPct || 5;
+    $$('input[name="ccPay"]').forEach(r=>{ r.checked = (r.value===m.cc.mode) });
+    $$('input[name="saveMode"]').forEach(r=>{ r.checked = (r.value===m.saving.mode) });
+    $('#savePct').value = m.saving.pct || 10;
+    $('#saveAmt').value = m.saving.amount || 0;
+
+    updateSummary();
+  }
+
+  function updateSummary(){
+    const m = readActive();
+    const c = calc();
+
+    el.sumIncome.textContent = `RM ${fmt(c.income)}`;
+    const payMode = $('input[name="ccPay"]:checked').value;
+    el.sumCC.textContent = payMode==='full' ? `RM ${fmt(c.ccAmt)} (full)` : `RM ${fmt(c.ccPay)} (min), carry RM ${fmt(c.ccCarry)}`;
+    el.minReserve.textContent = `RM ${fmt(c.ccPay)}`;
+
+    el.sumFixed.textContent = `RM ${fmt(c.fixed)}`;
+    el.sumVar.textContent = `RM ${fmt(c.variable)}`;
+    el.sumSave.textContent = `RM ${fmt(c.saveAmt)}`;
+    el.sumLeft.textContent = `RM ${fmt(c.left)}`;
+
+    const perDay = c.left>0 ? c.left/Math.max(1, c.remainingDays) : 0;
+    el.perDay.textContent = `RM ${fmt(perDay)}`;
+    el.daysLeft.textContent = c.remainingDays;
+
+    el.overspendRow.style.display = c.left < 0 ? '' : 'none';
+
+    // Persist state snapshot
+    m.cc.amount = +el.ccAmount.value || 0;
+    m.cc.mode = $('input[name="ccPay"]:checked').value;
+    m.cc.minPct = +el.ccMinPct.value || 5;
+    m.saving.mode = $('input[name="saveMode"]:checked').value;
+    m.saving.pct = +$('#savePct').value || 0;
+    m.saving.amount = +$('#saveAmt').value || 0;
+    save();
+  }
+
+  // --- Events ---
+  function onChange(){ updateSummary(); }
+
+  $('#addIncome').onclick = ()=>{ readActive().income.push({name:'Income', amount:0}); renderAll(); };
+  $('#addFixed').onclick = ()=>{ readActive().fixed.push({name:'Fixed', amount:0}); renderAll(); };
+  $('#addVar').onclick = ()=>{ readActive().variable.push({name:'Variable', amount:0}); renderAll(); };
+
+  ['ccAmount','ccMinPct','savePct','saveAmt'].forEach(id=>{
+    const e = document.getElementById(id); e.addEventListener('input', updateSummary); e.addEventListener('change', updateSummary);
+  });
+  $$('input[name="ccPay"]').forEach(r=> r.onchange = updateSummary);
+  $$('input[name="saveMode"]').forEach(r=> r.onchange = updateSummary);
+
+  $('#btnQuickAdd').onclick = ()=>{
+    const m = readActive();
+    if(m.income.length===1 && !m.income[0].amount){ m.income[0].amount = 0; }
+    if(m.fixed.length===1 && !m.fixed[0].amount){ m.fixed[0].amount = 0; }
+    if(m.variable.length===1 && !m.variable[0].amount){ m.variable[0].amount = 0; }
+    renderAll();
+  };
+
+  $('#btnToday').onclick = ()=>{
+    activeMonth = ym(new Date());
+    if(!state.months[activeMonth]) state.months[activeMonth] = blankMonth();
+    renderAll(); save();
+  };
+
+  $('#btnReset').onclick = ()=>{
+    if(confirm('Clear all lines for this month?')){
+      state.months[activeMonth] = blankMonth();
+      renderAll(); save();
+    }
+  };
+
+  $('#btnExport').onclick = ()=>{
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `my-money-${activeMonth}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+  $('#importFile').onchange = (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const obj = JSON.parse(reader.result);
+        if(!obj.months) throw new Error('Invalid file');
+        Object.assign(state, obj);
+        if(!state.months[activeMonth]) activeMonth = Object.keys(state.months)[0];
+        renderAll(); save();
+      }catch(err){ alert('Import failed: '+err.message); }
+    };
+    reader.readAsText(file);
+  };
+
+  // --- Storage ---
+  function save(){ try{ localStorage.setItem(storeKey, JSON.stringify(state)); }catch(e){} }
+  function load(){ try{ return JSON.parse(localStorage.getItem(storeKey)||''); }catch(e){ return null; } }
+
+  // Initial render
+  renderAll();
+})();
+</script>
+</body>
+</html>
