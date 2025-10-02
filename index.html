@@ -73,7 +73,9 @@
   .pill{padding:6px 12px;border-radius:999px;border:3px solid #3b44b3;background:#171d52;color:var(--ink);font-size:13px}
 
   .list{display:grid;gap:10px;margin-top:8px}
-  .item{display:grid;grid-template-columns:160px 1fr 220px 40px;gap:8px;align-items:center}
+  .item{display:grid;gap:8px;align-items:center}
+  .item--3{grid-template-columns:1fr 220px 40px}
+  .item--4{grid-template-columns:160px 1fr 220px 40px}
   .item input[type="text"]{background:#161d4e}
   .item input[type="number"]{text-align:right; font-size:18px; letter-spacing:.3px; font-variant-numeric: tabular-nums}
   .item .del{background:#212a78;border:3px solid #3a4aa0;border-radius:12px;display:grid;place-items:center;cursor:pointer;height:46px;font-size:16px; transition:.15s transform ease}
@@ -101,7 +103,11 @@
   .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; background:#12174a; padding:2px 6px; border-radius:6px; border:2px solid #2a386a}
   /* mobile layout tweaks */
   @media(max-width:700px){
-    .item{grid-template-columns:120px 1fr 170px 36px}
+    .item--4{grid-template-columns:120px 1fr 170px 36px}
+    .item--3{grid-template-columns:1fr 170px 36px}
+    .item input[type="text"], .item select{font-size:16px}
+    .item input[type="number"]{font-size:18px}
+  }
     .item input[type="text"], .item select{font-size:16px}
     .item input[type="number"]{font-size:18px}
   }
@@ -358,11 +364,11 @@
     listEl.innerHTML = '';
     arr.forEach((row, idx)=>{
       const line = document.createElement('div');
-      line.className = 'item';
+      line.className = 'item ' + (withCat ? 'item--4' : 'item--3');
       line.innerHTML = `
         ${withCat?`<select aria-label="category">${optionsHtml()}<option value="__custom">Custom…</option></select>`:''}
         <input type="text" value="${escapeHtml(row.name||'')}" placeholder="Name" aria-label="name">
-        <input type="number" value="${row.amount||0}" min="0" step="0.01" aria-label="amount">
+        <input type="number" value="${row.amount||0}" min="0" step="0.01" placeholder="0.00" inputmode="decimal" aria-label="amount">
         <button class="del" title="Delete">✕</button>
       `;
       let catEl=null; let nameEl=null; let amtEl=null; let delEl=null;
@@ -392,7 +398,7 @@
       nameEl.oninput = ()=>{ row.name = nameEl.value; onChange(); };
       amtEl.oninput = ()=>{ row.amount = parseFloat(amtEl.value||0); onChange(); };
       amtEl.onchange = onChange;
-      delEl.onclick = ()=>{ arr.splice(idx,1); onChange(); };
+      delEl.onclick = ()=>{ arr.splice(idx,1); renderAll(); onChange(); };
       listEl.appendChild(line);
     });
   }
