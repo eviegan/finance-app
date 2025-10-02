@@ -60,7 +60,7 @@
   input[type="number"]{appearance:textfield}
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button{appearance:none;margin:0}
-  input:focus{outline:none; border-color:#ffb3e5; box-shadow:0 0 0 4px #ffb3e522, inset 0 -4px 0 #0a0f3a}
+  input:focus{outline:none; border-color:#ffb3e5; box-shadow:0 0 0 4px #ffb3e522, inset 0 -4px 0 #0a0f3a; transform:translateY(-1px) rotate(-.2deg)}
 
   .btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;padding:12px 16px;border-radius:16px;border:3px solid #3740b0;background:#1b2160;color:var(--ink);cursor:pointer;text-decoration:none; transition:.15s transform ease, .15s filter ease; filter:var(--pop)}
   .btn:hover{transform:translateY(-2px)}
@@ -73,9 +73,9 @@
   .pill{padding:6px 12px;border-radius:999px;border:3px solid #3b44b3;background:#171d52;color:var(--ink);font-size:13px}
 
   .list{display:grid;gap:10px;margin-top:8px}
-  .item{display:grid;grid-template-columns:1fr 140px 40px;gap:8px;align-items:center}
+  .item{display:grid;grid-template-columns:160px 1fr 220px 40px;gap:8px;align-items:center}
   .item input[type="text"]{background:#161d4e}
-  .item input[type="number"]{text-align:right}
+  .item input[type="number"]{text-align:right; font-size:18px; letter-spacing:.3px; font-variant-numeric: tabular-nums}
   .item .del{background:#212a78;border:3px solid #3a4aa0;border-radius:12px;display:grid;place-items:center;cursor:pointer;height:46px;font-size:16px; transition:.15s transform ease}
   .item .del:hover{transform:rotate(-8deg)}
   .addline{margin-top:10px}
@@ -99,9 +99,53 @@
   details>summary::-webkit-details-marker{display:none}
 
   .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; background:#12174a; padding:2px 6px; border-radius:6px; border:2px solid #2a386a}
+  /* mobile layout tweaks */
+  @media(max-width:700px){
+    .item{grid-template-columns:120px 1fr 170px 36px}
+    .item input[type="text"], .item select{font-size:16px}
+    .item input[type="number"]{font-size:18px}
+  }
+  /* animated button squish */
+  .btn{animation:squish 3s ease-in-out infinite alternate}
+  @keyframes squish{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-1px) scale(1.02)}}
+  /* BG layer + themes */
+  .bg-layer{position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none}
+  .bg-layer.off{display:none}
+  .bg{position:absolute; opacity:.55; transform:translateZ(0)}
+  .cloud{width:360px;height:220px;border-radius:120px;background:radial-gradient(circle at 30% 40%, #fff4, #fff1 60%); filter:blur(2px)}
+  .cloud-1{left:-80px; top:40px; animation: drift 26s linear infinite}
+  .cloud-2{right:-100px; top:140px; animation: drift 30s linear infinite reverse}
+  .coin{font-size:54px; text-shadow:0 8px 0 #0006;}
+  .coin-1{left:10%; top:65%; animation: bob 5s ease-in-out infinite}
+  .coin-2{right:12%; top:25%; animation: bob 7s ease-in-out infinite}
+  .star{color:#fff8; font-size:22px}
+  .star-1{left:20%; top:20%; animation: twinkle 3s ease-in-out infinite}
+  .star-2{right:22%; top:70%; animation: twinkle 4s ease-in-out infinite .6s}
+  @keyframes drift{0%{transform:translateX(0)}100%{transform:translateX(30vw)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes twinkle{0%,100%{opacity:.25}50%{opacity:.8}}
+
+  body[data-theme="candy"]{background:
+    radial-gradient(1200px 800px at 70% -10%, #ffb7e6 0%, #8a7bff 40%, #0b0f1f 100%),
+    linear-gradient(135deg, rgba(255,200,0,.08), rgba(122,249,255,.10));}
+  body[data-theme="money"]{background:
+    radial-gradient(1200px 800px at 60% -10%, #5fffb4 0%, #3fa277 45%, #0b0f1f 100%),
+    linear-gradient(135deg, rgba(255,255,255,.05), rgba(0,0,0,.15));}
+  body[data-theme="galaxy"]{background:
+    radial-gradient(1200px 800px at 50% -10%, #6ee7ff 0%, #7f5cff 40%, #0b0f1f 100%),
+    linear-gradient(135deg, rgba(255,110,196,.12), rgba(120,115,245,.12));}
 </style>
 </head>
 <body>
+  <!-- Animated background layer -->
+  <div class="bg-layer">
+    <div class="bg cloud cloud-1"></div>
+    <div class="bg cloud cloud-2"></div>
+    <div class="bg coin coin-1">💰</div>
+    <div class="bg coin coin-2">🪙</div>
+    <div class="bg star star-1">✦</div>
+    <div class="bg star star-2">✦</div>
+  </div>
   <div class="wrap">
     <header>
       <div class="title">
@@ -211,6 +255,34 @@
             <li>Press <span class="kbd">Enter</span> inside an amount to update totals.
           </ul>
         </details>
+        <details style="margin-top:8px">
+          <summary><strong>Appearance & Background</strong> 🌈</summary>
+          <div class="mut" style="margin-top:8px">
+            <label>Theme
+              <select id="themeSelect">
+                <option value="candy">Candy Sky (default)</option>
+                <option value="money">Money Rain</option>
+                <option value="galaxy">Galaxy Glow</option>
+              </select>
+            </label>
+            <div style="margin-top:8px" class="flex">
+              <label class="pill"><input type="checkbox" id="toggleAnim" checked> &nbsp;Animated background</label>
+              <label class="pill"><input type="checkbox" id="syncName" checked> &nbsp;Auto-fill name from category</label>
+              <label class="pill"><input type="checkbox" id="toggleConfetti" checked> &nbsp;Confetti on positive leftover</label>
+            </div>
+          </div>
+        </details>
+        <details style="margin-top:8px">
+          <summary><strong>Expense Categories</strong> 🧸</summary>
+          <div class="mut" style="margin-top:8px">
+            <div id="catChips" class="flex" style="flex-wrap:wrap"></div>
+            <div class="footer-actions">
+              <button class="btn" id="btnAddCat">+ Add category</button>
+              <button class="btn" id="btnResetCat">Reset to defaults</button>
+            </div>
+            <p class="note">Categories power the dropdowns in Fixed & Variable lists. You can still type custom names anytime.</p>
+          </div>
+        </details>
       </aside>
     </div>
   </div>
@@ -239,7 +311,7 @@
     saving:{mode:'percent', pct:10, amount:0}
   });
 
-  const state = load() || { months: { [activeMonth]: blankMonth() }, categories: defaultCategories.slice(), settings:{theme:'candy', anim:true} };
+  const state = load() || { months: { [activeMonth]: blankMonth() }, categories: defaultCategories.slice(), settings:{theme:'candy', anim:true, syncName:true, confetti:true} };
   if(!state.months[activeMonth]) state.months[activeMonth] = blankMonth();
 
   // Apply theme immediately
@@ -303,10 +375,15 @@
         catEl.onchange = ()=>{
           if(catEl.value==='__custom'){
             const val = prompt('Type your custom category name');
-            if(val){ row.cat = val; nameEl.value = nameEl.value||val; }
-            else { catEl.value = initial; row.cat = initial; }
+            if(val){
+              row.cat = val;
+              if(state.settings.syncName || !nameEl.value){ nameEl.value = val; row.name = val; }
+            }else{
+              catEl.value = initial; row.cat = initial;
+            }
           } else {
-            row.cat = catEl.value; if(!row.name || state.categories.includes(row.name)) nameEl.value = row.cat;
+            row.cat = catEl.value;
+            if(state.settings.syncName || !nameEl.value){ nameEl.value = row.cat; row.name = row.cat; }
           }
           onChange();
         };
@@ -325,7 +402,7 @@
     ccAmount: $('#ccAmount'), ccMinPct: $('#ccMinPct'),
     sumIncome: $('#sumIncome'), sumCC: $('#sumCC'), sumFixed: $('#sumFixed'), sumVar: $('#sumVar'), sumSave: $('#sumSave'), sumLeft: $('#sumLeft'), perDay: $('#perDay'), daysLeft: $('#daysLeft'),
     overspendRow: $('#overspendRow'), perDayRow: $('#perDayRow'), minReserve: $('#minReserve'),
-    themeSelect: $('#themeSelect'), toggleAnim: $('#toggleAnim'), catChips: $('#catChips')
+    themeSelect: $('#themeSelect'), toggleAnim: $('#toggleAnim'), syncName: $('#syncName'), confetti: $('#toggleConfetti'), catChips: $('#catChips')
   };
 
   function readActive(){ return state.months[activeMonth]; }
@@ -383,6 +460,8 @@
     // Theme controls
     el.themeSelect.value = state.settings.theme || 'candy';
     el.toggleAnim.checked = !!state.settings.anim;
+    el.syncName.checked = state.settings.syncName !== false;
+    el.confetti.checked = state.settings.confetti !== false;
     $('.bg-layer').classList.toggle('off', !state.settings.anim);
 
     renderCats();
@@ -431,7 +510,7 @@
     save();
 
     // Mascot bounce when positive left
-    if(c.left>0){ bounceMascot(); }
+    if(c.left>0){ bounceMascot(); if(state.settings.confetti){ confettiBurst(); } }
   }
 
   // --- Events ---
@@ -500,11 +579,26 @@
 
   // Theme controls
   el.themeSelect.onchange = ()=>{ state.settings.theme = el.themeSelect.value; applyTheme(); save(); };
-  el.toggleAnim.onchange = ()=>{ state.settings.anim = el.toggleAnim.checked; $('.bg-layer').classList.toggle('off', !state.settings.anim); save(); };
+  el.toggleAnim.onchange = ()=>{ state.settings.anim = el.toggleAnim.checked; document.querySelector('.bg-layer').classList.toggle('off', !state.settings.anim); save(); };
+  el.syncName.onchange = ()=>{ state.settings.syncName = el.syncName.checked; save(); };
+  el.confetti.onchange = ()=>{ state.settings.confetti = el.confetti.checked; save(); };
 
   function applyTheme(){ document.body.setAttribute('data-theme', (state.settings&&state.settings.theme)||'candy'); }
 
   // Mascot bounce (subtle)
+  function confettiBurst(){
+    const n = 14;
+    for(let i=0;i<n;i++){
+      const s = document.createElement('div');
+      s.textContent = ['💸','🪙','✨','💖'][i%4];
+      Object.assign(s.style,{position:'fixed', left:(50+Math.random()*20-10)+'vw', top:'10vh', fontSize:(16+Math.random()*14)+'px', zIndex:9999, pointerEvents:'none'});
+      document.body.appendChild(s);
+      s.animate([
+        {transform:'translate(0,0) rotate(0deg)', opacity:1},
+        {transform:`translate(${(Math.random()*2-1)*120}px, ${80+Math.random()*200}px) rotate(${(Math.random()*2-1)*140}deg)`, opacity:0}
+      ], {duration:900+Math.random()*500, easing:'cubic-bezier(.2,.6,.2,1)'}).onfinish=()=>s.remove();
+    }
+  }
   function bounceMascot(){ const logo = document.querySelector('.logo'); if(!logo) return; logo.animate([{transform:'translateY(0)'},{transform:'translateY(-6px)'},{transform:'translateY(0)'}],{duration:500}); }
 
   // Storage
