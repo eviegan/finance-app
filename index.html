@@ -221,21 +221,29 @@
   const $$ = (q, el=document)=>Array.from(el.querySelectorAll(q));
 
   // --- State ---
-  const storeKey = 'mymoney.v1';
+  const storeKey = 'mymoney.v2';
   const now = new Date();
   const ym = (d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   let activeMonth = ym(now);
 
+  const defaultCategories = [
+    'Rent/Mortgage','Utilities','Internet','Phone','Insurance','Loans','Subscriptions',
+    'Groceries','Transport','Dining Out','Entertainment','Shopping','Health','Education','Gifts','Travel','Pets','Misc'
+  ];
+
   const blankMonth = ()=>({
     income:[{name:'Salary', amount:0}],
     cc:{amount:0, mode:'full', minPct:5},
-    fixed:[{name:'Rent', amount:0}],
-    variable:[{name:'Groceries', amount:0}],
+    fixed:[{cat:'Rent/Mortgage', name:'Rent', amount:0}],
+    variable:[{cat:'Groceries', name:'Groceries', amount:0}],
     saving:{mode:'percent', pct:10, amount:0}
   });
 
-  const state = load() || { months: { [activeMonth]: blankMonth() } };
+  const state = load() || { months: { [activeMonth]: blankMonth() }, categories: defaultCategories.slice(), settings:{theme:'candy', anim:true} };
   if(!state.months[activeMonth]) state.months[activeMonth] = blankMonth();
+
+  // Apply theme immediately
+  applyTheme();
 
   // --- UI Builders ---
   const monthTabs = $('#monthTabs');
@@ -253,7 +261,6 @@
       btn.onclick = ()=>{ activeMonth = m; renderAll(); save(); };
       monthTabs.appendChild(btn);
     });
-    // Add next/prev quick tabs
     const addBtn = document.createElement('button');
     addBtn.className = 'tab'; addBtn.textContent = '+ Add Month';
     addBtn.onclick = ()=>{
@@ -271,17 +278,40 @@
     return d.toLocaleString(undefined,{month:'short', year:'numeric'});
   }
 
-  function makeLine(listEl, arr, onChange){
+  function optionsHtml(){
+    return state.categories.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
+  }
+
+  function makeLine(listEl, arr, onChange, withCat=false){
     listEl.innerHTML = '';
     arr.forEach((row, idx)=>{
       const line = document.createElement('div');
       line.className = 'item';
       line.innerHTML = `
-        <input type="text" value="${row.name||''}" placeholder="Name" aria-label="name">
+        ${withCat?`<select aria-label="category">${optionsHtml()}<option value="__custom">Custom…</option></select>`:''}
+        <input type="text" value="${escapeHtml(row.name||'')}" placeholder="Name" aria-label="name">
         <input type="number" value="${row.amount||0}" min="0" step="0.01" aria-label="amount">
         <button class="del" title="Delete">✕</button>
       `;
-      const [nameEl, amtEl, delEl] = line.children;
+      let catEl=null; let nameEl=null; let amtEl=null; let delEl=null;
+      if(withCat){ [catEl, nameEl, amtEl, delEl] = line.children; } else { [nameEl, amtEl, delEl] = line.children; }
+
+      if(withCat){
+        // initialize category select from row.cat if present
+        const initial = row.cat && state.categories.includes(row.cat) ? row.cat : (state.categories[0]||'Misc');
+        catEl.value = row.cat || initial;
+        catEl.onchange = ()=>{
+          if(catEl.value==='__custom'){
+            const val = prompt('Type your custom category name');
+            if(val){ row.cat = val; nameEl.value = nameEl.value||val; }
+            else { catEl.value = initial; row.cat = initial; }
+          } else {
+            row.cat = catEl.value; if(!row.name || state.categories.includes(row.name)) nameEl.value = row.cat;
+          }
+          onChange();
+        };
+      }
+
       nameEl.oninput = ()=>{ row.name = nameEl.value; onChange(); };
       amtEl.oninput = ()=>{ row.amount = parseFloat(amtEl.value||0); onChange(); };
       amtEl.onchange = onChange;
@@ -294,7 +324,8 @@
   const el = {
     ccAmount: $('#ccAmount'), ccMinPct: $('#ccMinPct'),
     sumIncome: $('#sumIncome'), sumCC: $('#sumCC'), sumFixed: $('#sumFixed'), sumVar: $('#sumVar'), sumSave: $('#sumSave'), sumLeft: $('#sumLeft'), perDay: $('#perDay'), daysLeft: $('#daysLeft'),
-    overspendRow: $('#overspendRow'), perDayRow: $('#perDayRow'), minReserve: $('#minReserve')
+    overspendRow: $('#overspendRow'), perDayRow: $('#perDayRow'), minReserve: $('#minReserve'),
+    themeSelect: $('#themeSelect'), toggleAnim: $('#toggleAnim'), catChips: $('#catChips')
   };
 
   function readActive(){ return state.months[activeMonth]; }
@@ -318,21 +349,18 @@
 
     const left = income - ccPay - fixed - variable - saveAmt;
 
-    // Days left in month for per-day safe amount (if positive)
+    // Days left in month for per-day safe amount
     const [yy,mm] = activeMonth.split('-').map(Number);
     const today = new Date();
     const inMonth = today.getFullYear()===yy && today.getMonth()===(mm-1);
     const totalDays = new Date(yy, mm, 0).getDate();
-    const dayStart = inMonth ? today.getDate() : 1; // if not current month, show full month average
+    const dayStart = inMonth ? today.getDate() : 1;
     const remainingDays = totalDays - dayStart + 1;
 
     return { income, ccAmt, ccPay, ccCarry, fixed, variable, saveAmt, left, remainingDays };
   }
 
-  function fmt(n){
-    return (n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
-  }
-
+  function fmt(n){ return (n||0).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
   function sum(arr){ return arr.reduce((a,b)=>a + (+b.amount||0), 0); }
 
   function renderAll(){
@@ -340,9 +368,9 @@
     const m = readActive();
 
     // Rebuild lists
-    makeLine(incomeList, m.income, onChange);
-    makeLine(fixedList, m.fixed, onChange);
-    makeLine(varList, m.variable, onChange);
+    makeLine(incomeList, m.income, onChange, false);
+    makeLine(fixedList, m.fixed, onChange, true);
+    makeLine(varList, m.variable, onChange, true);
 
     // Set inputs
     el.ccAmount.value = m.cc.amount || 0;
@@ -352,7 +380,25 @@
     $('#savePct').value = m.saving.pct || 10;
     $('#saveAmt').value = m.saving.amount || 0;
 
+    // Theme controls
+    el.themeSelect.value = state.settings.theme || 'candy';
+    el.toggleAnim.checked = !!state.settings.anim;
+    $('.bg-layer').classList.toggle('off', !state.settings.anim);
+
+    renderCats();
     updateSummary();
+  }
+
+  function renderCats(){
+    el.catChips.innerHTML = '';
+    state.categories.forEach((c,i)=>{
+      const chip = document.createElement('button');
+      chip.className = 'btn';
+      chip.textContent = c;
+      chip.title = 'Click to remove';
+      chip.onclick = ()=>{ if(confirm(`Remove category "${c}"?`)){ state.categories.splice(i,1); renderAll(); save(); } };
+      el.catChips.appendChild(chip);
+    });
   }
 
   function updateSummary(){
@@ -375,7 +421,7 @@
 
     el.overspendRow.style.display = c.left < 0 ? '' : 'none';
 
-    // Persist state snapshot
+    // Persist snapshot
     m.cc.amount = +el.ccAmount.value || 0;
     m.cc.mode = $('input[name="ccPay"]:checked').value;
     m.cc.minPct = +el.ccMinPct.value || 5;
@@ -383,14 +429,17 @@
     m.saving.pct = +$('#savePct').value || 0;
     m.saving.amount = +$('#saveAmt').value || 0;
     save();
+
+    // Mascot bounce when positive left
+    if(c.left>0){ bounceMascot(); }
   }
 
   // --- Events ---
   function onChange(){ updateSummary(); }
 
   $('#addIncome').onclick = ()=>{ readActive().income.push({name:'Income', amount:0}); renderAll(); };
-  $('#addFixed').onclick = ()=>{ readActive().fixed.push({name:'Fixed', amount:0}); renderAll(); };
-  $('#addVar').onclick = ()=>{ readActive().variable.push({name:'Variable', amount:0}); renderAll(); };
+  $('#addFixed').onclick = ()=>{ readActive().fixed.push({cat:state.categories[0]||'Misc', name:state.categories[0]||'Item', amount:0}); renderAll(); };
+  $('#addVar').onclick = ()=>{ readActive().variable.push({cat:state.categories[7]||'Groceries', name:state.categories[7]||'Groceries', amount:0}); renderAll(); };
 
   ['ccAmount','ccMinPct','savePct','saveAmt'].forEach(id=>{
     const e = document.getElementById(id); e.addEventListener('input', updateSummary); e.addEventListener('change', updateSummary);
@@ -398,13 +447,7 @@
   $$('input[name="ccPay"]').forEach(r=> r.onchange = updateSummary);
   $$('input[name="saveMode"]').forEach(r=> r.onchange = updateSummary);
 
-  $('#btnQuickAdd').onclick = ()=>{
-    const m = readActive();
-    if(m.income.length===1 && !m.income[0].amount){ m.income[0].amount = 0; }
-    if(m.fixed.length===1 && !m.fixed[0].amount){ m.fixed[0].amount = 0; }
-    if(m.variable.length===1 && !m.variable[0].amount){ m.variable[0].amount = 0; }
-    renderAll();
-  };
+  $('#btnQuickAdd').onclick = ()=>{ renderAll(); };
 
   $('#btnToday').onclick = ()=>{
     activeMonth = ym(new Date());
@@ -436,16 +479,40 @@
         const obj = JSON.parse(reader.result);
         if(!obj.months) throw new Error('Invalid file');
         Object.assign(state, obj);
+        if(!state.categories) state.categories = defaultCategories.slice();
+        if(!state.settings) state.settings = {theme:'candy', anim:true};
         if(!state.months[activeMonth]) activeMonth = Object.keys(state.months)[0];
+        applyTheme();
         renderAll(); save();
       }catch(err){ alert('Import failed: '+err.message); }
     };
     reader.readAsText(file);
   };
 
-  // --- Storage ---
+  // Category controls
+  $('#btnAddCat').onclick = ()=>{
+    const val = prompt('New category name');
+    if(val){ state.categories.push(val); renderAll(); save(); }
+  };
+  $('#btnResetCat').onclick = ()=>{
+    if(confirm('Reset categories to defaults?')){ state.categories = defaultCategories.slice(); renderAll(); save(); }
+  };
+
+  // Theme controls
+  el.themeSelect.onchange = ()=>{ state.settings.theme = el.themeSelect.value; applyTheme(); save(); };
+  el.toggleAnim.onchange = ()=>{ state.settings.anim = el.toggleAnim.checked; $('.bg-layer').classList.toggle('off', !state.settings.anim); save(); };
+
+  function applyTheme(){ document.body.setAttribute('data-theme', (state.settings&&state.settings.theme)||'candy'); }
+
+  // Mascot bounce (subtle)
+  function bounceMascot(){ const logo = document.querySelector('.logo'); if(!logo) return; logo.animate([{transform:'translateY(0)'},{transform:'translateY(-6px)'},{transform:'translateY(0)'}],{duration:500}); }
+
+  // Storage
   function save(){ try{ localStorage.setItem(storeKey, JSON.stringify(state)); }catch(e){} }
   function load(){ try{ return JSON.parse(localStorage.getItem(storeKey)||''); }catch(e){ return null; } }
+
+  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",
+    ">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
   // Initial render
   renderAll();
