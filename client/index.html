@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Tap Tap Earn</title>
+<link rel="preconnect" href="https://telegram.org" />
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0b0f1e; --card:#131838; --ink:#eef4ff; --mut:#a9b7d8;
+    --g1:#ff6ec4; --g2:#7873f5; --ok:#aef7c1;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:radial-gradient(1200px 800px at 20% -10%, #161b3c 0%, #0b0f1e 55%, #060812 100%);
+    color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    display:grid; place-items:center; padding:16px;
+  }
+  .wrap{
+    width:min(460px,100%); background:var(--card); border:1px solid #243; border-radius:16px; padding:20px;
+    box-shadow:0 0 60px rgba(120,115,245,.25), inset 0 0 0 1px rgba(255,255,255,.02);
+  }
+  h1{margin:0 0 8px; font-size:20px; font-weight:700; letter-spacing:.2px}
+  .mut{color:var(--mut); font-size:12px; margin:0 0 16px}
+  .stats{display:flex; gap:10px; margin:16px 0}
+  .stat{flex:1; padding:12px; background:#0e1330; border:1px solid #223; border-radius:12px; text-align:center}
+  .stat b{display:block; font-size:18px}
+  .energy{margin:16px 0 8px; font-size:12px; color:var(--mut)}
+  .bar{height:12px; background:#0c1130; border:1px solid #223; border-radius:999px; overflow:hidden}
+  .bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--g1),var(--g2)); transition:width .25s}
+  .tap{
+    margin:24px auto 12px; width:180px; height:180px; border-radius:999px; border:none; cursor:pointer;
+    color:#fff; font-weight:800; letter-spacing:.5px; font-size:24px;
+    background:radial-gradient(120px 120px at 40% 30%, #ffaae3 0%, #ff6ec4 35%, #7873f5 100%);
+    box-shadow:0 8px 28px rgba(120,115,245,.45), inset 0 0 30px rgba(255,255,255,.15);
+    transition:transform .07s;
+    user-select:none; -webkit-tap-highlight-color:transparent;
+  }
+  .tap:active{transform:scale(.94)}
+  .row{display:flex; gap:10px; margin-top:10px}
+  .btn{flex:1; padding:12px 14px; border-radius:12px; border:1px solid #2a2e58; background:#10163b; color:var(--ink); font-weight:700; cursor:pointer}
+  .btn[disabled]{opacity:.5; cursor:not-allowed}
+  .log{margin-top:14px; font-size:12px; color:var(--mut); min-height:16px}
+  .foot{margin-top:12px; text-align:center; font-size:11px; color:#9fb0d9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tap Tap Earn</h1>
+  <p class="mut">Tap to collect coins. Energy regenerates over time. Secure Telegram sign-in is automatic.</p>
+
+  <div class="stats">
+    <div class="stat"><span>Coins</span><b id="coins">0</b></div>
+    <div class="stat"><span>Tap Power</span><b id="power">1</b></div>
+    <div class="stat"><span>Level</span><b id="level">1</b></div>
+  </div>
+
+  <div class="energy">Energy <span id="energyText">0/0</span></div>
+  <div class="bar"><i id="energyBar"></i></div>
+
+  <button class="tap" id="tapBtn">TAP!</button>
+
+  <div class="row">
+    <button class="btn" id="upgradeBtn">Upgrade (+1 power)</button>
+    <button class="btn" id="leaderBtn">Top 10</button>
+  </div>
+
+  <div class="log" id="log"></div>
+  <div class="foot">v0.1 • Demo build</div>
+</div>
+
+<script>
+const API = "YOUR_BACKEND_URL"; // e.g. https://mini-tap-game.onrender.com
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+let state = null;
+let syncing = false;
+
+function qs(id){return document.getElementById(id)}
+const coinsEl = qs('coins');
+const powerEl = qs('power');
+const levelEl = qs('level');
+const energyText = qs('energyText');
+const energyBar = qs('energyBar');
+const logEl = qs('log');
+const tapBtn = qs('tapBtn');
+const upgradeBtn = qs('upgradeBtn');
+const leaderBtn = qs('leaderBtn');
+
+function setLog(s){ logEl.textContent = s || ''; }
+
+function render(){
+  if(!state) return;
+  coinsEl.textContent = Math.floor(state.tokens);
+  powerEl.textContent = state.tap_power;
+  levelEl.textContent = state.level;
+  energyText.textContent = `${Math.floor(state.energy)}/${state.cap}`;
+  energyBar.style.width = `${Math.max(0, Math.min(100, (state.energy/state.cap)*100))}%`;
+  upgradeBtn.disabled = state.tokens < state.upgrade_cost;
+  upgradeBtn.textContent = `Upgrade (+1 power) — ${state.upgrade_cost} coins`;
+  tapBtn.disabled = state.energy < 1;
+}
+
+function regenTick(){
+  if(!state) return;
+  const now = Date.now();
+  const dt = (now - (state._client_ts || now))/1000;
+  state._client_ts = now;
+  state.energy = Math.min(state.cap, state.energy + state.regen_per_sec * dt);
+  render();
+}
+setInterval(regenTick, 300);
+
+async function post(path, body){
+  const res = await fetch(API + path, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error('Network error');
+  return res.json();
+}
+
+async function init(){
+  try{
+    const initData = tg.initData || ''; // raw string
+    const data = await post('/api/auth', { initData });
+    state = data.state;
+    state._client_ts = Date.now();
+    setLog('Signed in as @' + (data.username || 'player'));
+    render();
+  }catch(e){
+    console.error(e);
+    setLog('Auth failed. Did you open this from Telegram?');
+  }
+}
+
+tapBtn.addEventListener('click', async () => {
+  if(!state || syncing) return;
+  if(state.energy < 1){ setLog('No energy. Wait to regenerate.'); return; }
+  // optimistic UI
+  state.energy = Math.max(0, state.energy - 1);
+  state.tokens += state.tap_power;
+  render();
+  try{
+    syncing = true;
+    const r = await post('/api/tap', { initData: tg.initData });
+    state = r.state; state._client_ts = Date.now();
+    syncing = false; render();
+  }catch(e){
+    syncing = false;
+    setLog('Sync error. Please try again.');
+  }
+});
+
+upgradeBtn.addEventListener('click', async () => {
+  if(!state) return;
+  if(state.tokens < state.upgrade_cost){ setLog('Not enough coins.'); return; }
+  try{
+    const r = await post('/api/upgrade', { initData: tg.initData });
+    state = r.state; state._client_ts = Date.now(); render();
+    setLog('Upgraded tap power!');
+  }catch(e){
+    setLog('Upgrade failed.');
+  }
+});
+
+leaderBtn.addEventListener('click', async () => {
+  try{
+    const r = await (await fetch(API + '/api/leaderboard')).json();
+    const lines = r.top.map((row,i)=>`${i+1}. ${row.username || 'player'} — ${row.tokens}`);
+    setLog('Top 10: ' + lines.join(' | '));
+  }catch(e){
+    setLog('Could not load leaderboard.');
+  }
+});
+
+init();
+</script>
+</body>
+</html>
