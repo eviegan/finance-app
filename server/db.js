@@ -2,17 +2,25 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
+/**
+ * Pool with SSL enabled on Render and similar hosts.
+ * For local dev you can set PGSSLMODE=disable
+ */
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
+  ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false },
 });
 
 export async function q(text, params) {
   return pool.query(text, params);
 }
 
-// Auto-create tables on boot
-export async function initTables(){
+/**
+ * Create tables (if missing) and harden defaults so
+ * new & existing rows always have sane energy values.
+ */
+export async function initTables() {
+  // Players
   await q(`
     CREATE TABLE IF NOT EXISTS players (
       id SERIAL PRIMARY KEY,
@@ -25,6 +33,7 @@ export async function initTables(){
     );
   `);
 
+  // Game state
   await q(`
     CREATE TABLE IF NOT EXISTS game_state (
       id SERIAL PRIMARY KEY,
@@ -39,6 +48,23 @@ export async function initTables(){
     );
   `);
 
-  // Leaderboard helper index
-  await q(`CREATE INDEX IF NOT EXISTS idx_game_state_tokens ON game_state(tokens DESC);`);
+  // Index for leaderboard
+  await q(`CREATE INDEX IF NOT EXISTS idx_game_state_tokens ON game_state (tokens DESC);`);
+
+  // Ensure defaults (in case table created earlier without them)
+  await q(`ALTER TABLE game_state ALTER COLUMN cap           SET DEFAULT 100;`);
+  await q(`ALTER TABLE game_state ALTER COLUMN energy        SET DEFAULT 100;`);
+  await q(`ALTER TABLE game_state ALTER COLUMN regen_per_sec SET DEFAULT 2;`);
+  await q(`ALTER TABLE game_state ALTER COLUMN last_update   SET DEFAULT NOW();`);
+
+  // Repair any existing bad rows (0 or NULL values)
+  await q(`
+    UPDATE game_state
+    SET
+      cap           = COALESCE(NULLIF(cap, 0), 100),
+      regen_per_sec = COALESCE(NULLIF(regen_per_sec, 0), 2),
+      energy        = CASE WHEN energy IS NULL OR energy::numeric < 1 THEN 100 ELSE energy END,
+      last_update   = COALESCE(last_update, NOW())
+    WHERE TRUE;
+  `);
 }
