@@ -63,9 +63,22 @@ async function ensurePlayer(user){
 }
 
 async function loadState(player_id){
-  const { rows } = await q(`SELECT tokens, level, tap_power, energy, cap, regen_per_sec FROM game_state WHERE player_id=$1`, [player_id]);
-  const st = rows[0];
-  const upgrade_cost = Math.max(10, st.tap_power * 20); // simple curve
+  const { rows } = await q(
+    `SELECT tokens, level, tap_power, energy, cap, regen_per_sec
+     FROM game_state WHERE player_id=$1`, [player_id]);
+
+  const s = rows[0];
+  const safe = (v, d) => Number(v) > 0 ? Number(v) : d;
+
+  const st = {
+    tokens: Number(s.tokens) || 0,
+    level:  Number(s.level)  || 1,
+    tap_power: safe(s.tap_power, 1),
+    energy:    Math.min(safe(s.cap, 100), safe(s.energy, 100)),
+    cap:       safe(s.cap, 100),
+    regen_per_sec: safe(s.regen_per_sec, 2)
+  };
+  const upgrade_cost = Math.max(10, st.tap_power * 20);
   return { ...st, upgrade_cost };
 }
 
